@@ -137,10 +137,24 @@ jobs:
     - name: Build changelog text
       id: changelog
       run: |
-        text=$(jq -r '.commits[] | "• " + (.message | split("\n")[0]) + " (" + .id[0:7] + ")"' "$GITHUB_EVENT_PATH")
-        echo 'log<<EOF' >>"$GITHUB_OUTPUT"
-        echo "$text" >>"$GITHUB_OUTPUT"
-        echo 'EOF' >>"$GITHUB_OUTPUT"
+        # 使用 jq 安全地处理特殊字符，并进行转义
+        text=$(jq -r '
+          .commits[:100] | map(
+            "• " + ((.message | split("\n"))[0] | gsub("[\\\"\\n\\r\\t]"; "")) + " (" + .id[0:7] + ")"
+          ) | join("\n")
+        ' "$GITHUB_EVENT_PATH")
+
+        # 如果 changelog 为空，使用默认消息
+        if [ -z "$text" ]; then
+          text="No significant changes"
+        fi
+
+        # 使用 heredoc 安全地输出多行文本
+        {
+          echo 'log<<CHANGELOG_EOF'
+          echo "$text"
+          echo 'CHANGELOG_EOF'
+        } >> "$GITHUB_OUTPUT"
 
     - name: Post to Discord
       env:
