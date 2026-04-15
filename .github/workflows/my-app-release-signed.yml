@@ -148,6 +148,11 @@ jobs:
       run: |
         artifact_url="https://nightly.link/linkq/GameNative/actions/runs/${{ github.run_id }}/app-release-signed.zip"
         changelog="${{ steps.changelog.outputs.log }}"
-        content="**New Android build**\nDownload: $artifact_url\n\nChanges:\n$changelog"
-        payload="{\"content\":\"$(echo -n "$content" | sed -E 's/"/\\"/g' | tr -d '\r')\"}"
-        curl -H 'Content-Type: application/json' -d "$payload" "$DISCORD_WEBHOOK_URL"
+        payload=$(jq -n \
+          --arg a "$artifact_url" \
+          --arg c "$changelog" \
+          '{
+            "content": "**New Android build**\nDownload: \($a)\n\nChanges:\n\($c)"
+          }'
+        )
+        curl -H "Content-Type: application/json" -d "$payload" "$DISCORD_WEBHOOK_URL"
